@@ -323,10 +323,10 @@ def homepage():
         messages = (Message
                     .query
                     .order_by(Message.timestamp.desc())
-                    .limit(100)
                     .all())
+        show_messages = [msg for msg in messages if (msg.user in g.user.following or msg.user == g.user)][:100]
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=show_messages)
 
     else:
         return render_template('home-anon.html')
