@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, EditUserForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Likes
 import pdb
 
 CURR_USER_KEY = "curr_user"
@@ -15,7 +15,7 @@ app = Flask(__name__)
 # Get DB_URI from environ variable (useful for production/testing) or,
 # if not set there, use development local db.
 app.config['SQLALCHEMY_DATABASE_URI'] = (
-    os.environ.get('DATABASE_URL', 'postgresql:///warbler'))
+    os.environ.get('DATABASE_URL', 'postgresql:///warbler-test'))
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
@@ -142,7 +142,9 @@ def list_users():
 @app.route('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
-
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
     user = User.query.get_or_404(user_id)
 
     # snagging messages in order from the database;
@@ -153,7 +155,8 @@ def users_show(user_id):
                 .order_by(Message.timestamp.desc())
                 .limit(100)
                 .all())
-    return render_template('users/show.html', user=user, messages=messages)
+    likes = user.likes
+    return render_template('users/show.html', user=user, messages=messages, likes = likes)
 
 
 @app.route('/users/<int:user_id>/following')
@@ -165,7 +168,7 @@ def show_following(user_id):
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/following.html', user=user)
+    return render_template('users/following.html', user=user, likes = user.likes)
 
 
 @app.route('/users/<int:user_id>/followers')
@@ -177,7 +180,7 @@ def users_followers(user_id):
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/followers.html', user=user)
+    return render_template('users/followers.html', user=user, likes = user.likes)
 
 
 @app.route('/users/follow/<int:follow_id>', methods=['POST'])
@@ -240,6 +243,18 @@ def profile():
         return redirect(f'/users/{user.id}')
 
     return render_template('users/edit.html', form = form)
+
+@app.route('/users/<int:user_id>/likes')
+def show_liked_messages(user_id):
+    """Show a page with messages a user has liked"""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(user_id)
+    likes = user.likes
+
+    return render_template('/users/liked_messages.html', likes = likes, user = user)
 
 
 @app.route('/users/delete', methods=["POST"])
@@ -306,6 +321,36 @@ def messages_destroy(message_id):
 
     return redirect(f"/users/{g.user.id}")
 
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def handle_like(message_id):
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    msg = Message.query.get_or_404(message_id)
+
+    if msg.user_id == g.user.username:
+        flash("You can't like your own Warble")
+        return redirect(f'/messages/{message_id}')
+
+    #if message in user likes, unlike it
+    current_likes = [like.id for like in g.user.likes]
+    if msg.id in current_likes:
+        like = Likes.query.filter_by(user_id = g.user.id).filter_by(message_id = message_id).first()
+        db.session.delete(like)
+        db.session.commit()
+        return redirect(f'/')
+        
+    #if message not in user likes, like it
+    else:
+        like = Likes(user_id = g.user.id,
+                message_id = message_id)
+
+        db.session.add(like)
+        db.session.commit()
+        return redirect('/')
+
+
 
 ##############################################################################
 # Homepage and error pages
@@ -316,7 +361,7 @@ def homepage():
     """Show homepage:
 
     - anon users: no messages
-    - logged in: 100 most recent messages of followed_users
+    - logged in: 100 most recent messages of followed_users & logged-in user
     """
 
     if g.user:
@@ -325,8 +370,10 @@ def homepage():
                     .order_by(Message.timestamp.desc())
                     .all())
         show_messages = [msg for msg in messages if (msg.user in g.user.following or msg.user == g.user)][:100]
+        likes = g.user.likes
+        like_ids = [like.id for like in likes]
 
-        return render_template('home.html', messages=show_messages)
+        return render_template('home.html', messages=show_messages, user = g.user, likes = like_ids)
 
     else:
         return render_template('home-anon.html')
