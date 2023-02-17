@@ -87,4 +87,7 @@ class MessageModelTestCase(TestCase):
         db.session.commit()
         self.assertEqual(len(self.usr1.likes), 3)
 
-    
+    def test_msg_user_relationship(self):
+        """Does Message.user return the correct username of the message creator?"""
+
+        self.assertEqual(self.test_msg.user_id, self.usr1.id)

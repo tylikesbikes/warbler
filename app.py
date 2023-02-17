@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, EditUserForm
 from models import db, connect_db, User, Message, Likes
-import pdb
 
 CURR_USER_KEY = "curr_user"
 
@@ -296,7 +295,7 @@ def messages_add():
 
         return redirect(f"/users/{g.user.id}")
 
-    return render_template('messages/new.html', form=form)
+    return render_template('messages/new.html', form=form), 201
 
 
 @app.route('/messages/<int:message_id>', methods=["GET"])
