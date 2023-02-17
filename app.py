@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
+
 from forms import UserAddForm, LoginForm, MessageForm, EditUserForm
 from models import db, connect_db, User, Message, Likes
 import pdb
@@ -15,7 +16,7 @@ app = Flask(__name__)
 # Get DB_URI from environ variable (useful for production/testing) or,
 # if not set there, use development local db.
 app.config['SQLALCHEMY_DATABASE_URI'] = (
-    os.environ.get('DATABASE_URL', 'postgresql:///warbler-test'))
+    os.environ.get('DATABASE_URL', 'postgresql:///warbler'))
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
@@ -125,7 +126,6 @@ def logout():
 @app.route('/users')
 def list_users():
     """Page with listing of users.
-
     Can take a 'q' param in querystring to search by that username.
     """
 
@@ -134,7 +134,7 @@ def list_users():
     if not search:
         users = User.query.all()
     else:
-        users = User.query.filter(User.username.like(f"%{search}%")).all()
+        users = User.query.filter(User.username.ilike(f"%{search}%")).all()
 
     return render_template('users/index.html', users=users)
 
@@ -242,7 +242,7 @@ def profile():
 
         return redirect(f'/users/{user.id}')
 
-    return render_template('users/edit.html', form = form)
+    return render_template('users/edit.html', form = form, user = user)
 
 @app.route('/users/<int:user_id>/likes')
 def show_liked_messages(user_id):

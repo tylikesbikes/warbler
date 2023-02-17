@@ -39,6 +39,8 @@ class UserModelTestCase(TestCase):
         Message.query.delete()
         Follows.query.delete()
 
+        db.session.commit()
+
         self.client = app.test_client()
 
     def test_user_model(self):
@@ -56,3 +58,43 @@ class UserModelTestCase(TestCase):
         # User should have no messages & no followers
         self.assertEqual(len(u.messages), 0)
         self.assertEqual(len(u.followers), 0)
+
+    def test_repr(self):
+        """Does the repr method work properly?"""
+
+        u = User(
+            email='a@b.co',
+            username = 'test_user2',
+            password='HASHED_PASSWORD'
+        )
+
+        db.session.add(u)
+        db.session.commit()
+
+        self.assertIn(f'User #{u.id}', u.__repr__())
+
+    def test_follows(self):
+        u1 = User(
+            email='a@b.co',
+            username = 'test_user1',
+            password='HASHED_PASSWORD'
+        )
+
+        u2 = User(
+            email='b@c.do',
+            username = 'test_user2',
+            password='HASHED_PASSWORD'
+        )
+
+        db.session.add_all([u1, u2])
+        db.session.commit()
+
+        self.assertFalse(u1.is_following(u2))
+
+        u1.following.append(u2)
+
+        self.assertTrue(u1.is_following(u2))
+        self.assertFalse(u2.is_following(u1))
+        self.assertTrue(u2.is_followed_by(u1))
+
+        

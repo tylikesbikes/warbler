@@ -25,6 +25,8 @@ class Follows(db.Model):
         db.ForeignKey('users.id', ondelete="cascade"),
         primary_key=True,
     )
+    def __repr__(self):
+        return f"Follow.  Follower id {self.user_following_id}, User being followed id {self.user_being_followed_id}"
 
 
 class Likes(db.Model):
@@ -47,6 +49,9 @@ class Likes(db.Model):
         db.ForeignKey('messages.id', ondelete='cascade'),
         unique=True
     )
+
+    def __repr__(self):
+        return f"Like id#{self.id}, user_id#{self.user_id}, message_id#{self.message_id}"
 
 
 class User(db.Model):
@@ -198,6 +203,9 @@ class Message(db.Model):
     )
 
     user = db.relationship('User')
+
+    def __repr__(self):
+        return f"Message id#{self.id}, user_id#{self.user_id}, message_id#{self.message_id}"
 
 
 def connect_db(app):

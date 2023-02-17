@@ -1,3 +1,5 @@
 venv
 __pycache__
 warbler.code-workspace
+test_solutions
+.gitignore

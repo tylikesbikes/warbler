@@ -44,22 +44,35 @@ class MessageViewTestCase(TestCase):
 
         self.client = app.test_client()
 
-        self.testuser = User.signup(username="testuser",
+        self.testuser_self = User.signup(username="testuser",
                                     email="test@test.com",
                                     password="testuser",
                                     image_url=None)
+        
+        self.testuser_other = User.signup(username="testuser_other",
+                            email="testother@test.com",
+                            password="testuser_other",
+                            image_url=None)
+        
+        db.session.add_all([self.testuser_self, self.testuser_other])
+        db.session.commit()
+        
+        self.test_message = Message(text = 'testmessage',user_id=self.testuser_other.id)
 
+        db.session.add(self.test_message)
         db.session.commit()
 
-    def test_add_message(self):
-        """Can use add a message?"""
+    
+        
 
+    def test_add_message(self):
+        """Can user add a message?"""
         # Since we need to change the session to mimic logging in,
         # we need to use the changing-session trick:
 
         with self.client as c:
             with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = self.testuser.id
+                sess[CURR_USER_KEY] = self.testuser_self.id
 
             # Now, that session setting is saved, so we can have
             # the rest of ours test
@@ -69,5 +82,17 @@ class MessageViewTestCase(TestCase):
             # Make sure it redirects
             self.assertEqual(resp.status_code, 302)
 
-            msg = Message.query.one()
-            self.assertEqual(msg.text, "Hello")
+            msgs = Message.query.order_by(Message.id.desc()).all()
+
+            self.assertEqual(len(msgs),2)
+
+            self.assertEqual(msgs[0].text, "Hello")
+
+    def test_view_message(self):
+        message = Message.query.one()
+
+
+        with self.client as c:
+            resp = c.get(f'/messages/{message.id}')
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(b'testmessage', resp.data)
